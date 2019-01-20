@@ -114,24 +114,13 @@ func dbClear(db *sql.DB) bool {
 
 
 func dbUpdate(db *sql.DB, blocknr int, blocktime int64, nominalRate, actualRate float64) {
-	row := db.QueryRow("SELECT block_nr FROM stakingratestats WHERE block_nr = $1", blocknr)
 
-	var d int
-
-	err := row.Scan(&d)
-	if err == sql.ErrNoRows {
-		_, err := db.Exec("INSERT INTO stakingratestats (block_nr, block_time, nominal_rate, actual_rate) VALUES ($1, $2, $3, $4)",
-			blocknr, blocktime, nominalRate, actualRate)
-		if err != nil {
-			log.Error("Inserting into db failed: %v", err)
-		}
-	} else {
-		_, err := db.Exec("UPDATE stakingratestats SET block_time = $1, nominal_rate = $2, actual_rate = $3 WHERE block_nr = $4",
-		blocktime, nominalRate, actualRate, blocknr)
-		if err != nil {
-			log.Error("Updating db failed: %v", err)
-		}
+	_, err := db.Exec("INSERT INTO stakingratestats (block_nr, block_time, nominal_rate, actual_rate) VALUES ($1, $2, $3, $4) ON CONFLICT DO NOTHING",
+		blocknr, blocktime, nominalRate, actualRate)
+	if err != nil {
+		log.Error("Inserting into db failed: %v", err)
 	}
+
 }
 
 
