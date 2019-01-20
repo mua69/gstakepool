@@ -4,8 +4,7 @@ import (
 	"database/sql"
 	"encoding/hex"
 	"encoding/json"
-	"fmt"
-	_ "github.com/lib/pq"
+		_ "github.com/lib/pq"
 	"github.com/mua69/gstakepool/log"
 	"github.com/mua69/particlrpc"
 	"github.com/pebbe/zmq4"
@@ -199,19 +198,19 @@ func getBlockHeader(rpc *particlrpc.ParticlRpc, hash []byte) *particlrpc.Block {
 func collectStakingStats(rpc *particlrpc.ParticlRpc) {
 	zmqContext, err := zmq4.NewContext()
 	if err != nil {
-		fmt.Printf("zmq context creation failed: %v\n", err)
+		log.Error("zmq context creation failed: %v\n", err)
 		return
 	}
 
 	zmq, err := zmqContext.NewSocket(zmq4.SUB)
 	if err != nil {
-		fmt.Printf("zmq socket creation failed: %v\n", err)
+		log.Error("zmq socket creation failed: %v\n", err)
 		return
 	}
 
 	err = zmq.Connect(gConfig.ZmqEndpoint)
 	if err != nil {
-		fmt.Printf("zmq connect failed: %v\n", err)
+		log.Error("zmq connect failed: %v\n", err)
 		return
 	}
 
@@ -220,23 +219,16 @@ func collectStakingStats(rpc *particlrpc.ParticlRpc) {
 	for {
 		msg, err := zmq.RecvMessageBytes(0)
 		if err != nil {
-			fmt.Printf("zmq receive failed: %v\n", err)
-			time.Sleep(60 * time.Second)
+			log.Error("zmq receive failed: %v\n", err)
+			time.Sleep(10*time.Second)
 		} else {
-			fmt.Printf("stakingRewardCollector: Processing block: %s\n", hex.EncodeToString(msg[1]))
+			log.Info(0,"stakingRewardCollector: Processing block: %s\n", hex.EncodeToString(msg[1]))
+
 			blockheader := getBlockHeader(rpc, msg[1])
-			if blockheader != nil {
-				for try := 0; try < 3; try++ {
-					stakeinfo := getStakingInfo(rpc)
-					if stakeinfo != nil {
-						if stakeinfo.Staking {
-							calcStakingReward(stakeinfo, blockheader)
-							break
-						} else {
-							time.Sleep(1*time.Second)
-						}
-					}
-				}
+			stakeinfo := getStakingInfo(rpc)
+
+			if blockheader != nil && stakeinfo != nil {
+				calcStakingReward(stakeinfo, blockheader)
 			}
 		}
 	}
