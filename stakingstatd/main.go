@@ -4,14 +4,14 @@ import (
 	"database/sql"
 	"encoding/hex"
 	"encoding/json"
-		_ "github.com/lib/pq"
+	"flag"
+	_ "github.com/lib/pq"
 	"github.com/mua69/gstakepool/log"
 	"github.com/mua69/particlrpc"
 	"github.com/pebbe/zmq4"
 	"io/ioutil"
 	"os"
 	"time"
-	"flag"
 )
 
 type Config struct {
@@ -21,6 +21,7 @@ type Config struct {
 	ParticldStakingWallet string `json:"particld_staking_wallet"`
 	ZmqEndpoint           string `json:"zmq_endpoint"`
 	DbUrl                 string `json:"db_url"`
+	DbUrl2                string `json:"db_url_2"`
 	LogFile               string `json:"log_file"`
 }
 
@@ -31,13 +32,15 @@ type TableDef struct {
 
 const SatPerPart = 100000000
 
-var gTableDef = []TableDef{ {"stakingratestats", "block_nr int PRIMARY KEY, block_time bigint, nominal_rate numeric, actual_rate numeric"} }
+var gTableDef = []TableDef{{"stakingratestats", "block_nr int PRIMARY KEY, block_time bigint, nominal_rate numeric, actual_rate numeric"}}
 
 var gConfig Config
 var gInitDb bool
 var gClearDb bool
+var gDbSelect int
 var gAvgActualReward = float64(0)
 var gDb *sql.DB
+var gDb2 *sql.DB
 
 func usage() {
 	log.Error("Usage: stakingstatd <config.json>")
@@ -46,9 +49,28 @@ func usage() {
 }
 
 func parseCommandLine() {
-	flag.BoolVar( &gInitDb, "initdb",false, "initialize database and exit")
-	flag.BoolVar( &gClearDb, "cleardb",false, "clears database and exit")
+	flag.BoolVar(&gInitDb, "initdb", false, "initialize database and exit")
+	flag.BoolVar(&gClearDb, "cleardb", false, "clears database and exit")
+	flag.IntVar(&gDbSelect, "db", 1, "select db (1 or 2) for initdb/cleardb")
 	flag.Parse()
+}
+
+func selectDb() *sql.DB {
+	switch gDbSelect {
+	case 1:
+		return gDb
+
+	case 2:
+		if gDb2 != nil {
+			return gDb2
+		}
+		log.Fatal("Database 2 ist not set up.")
+
+	default:
+		log.Fatal("Invalid value for -db: %d", gDbSelect)
+	}
+
+	return nil
 }
 
 func readConfig(filename string) bool {
@@ -68,8 +90,8 @@ func readConfig(filename string) bool {
 	return true
 }
 
-func dbConnect() *sql.DB {
-	db, err := sql.Open("postgres", gConfig.DbUrl)
+func dbConnect(url string) *sql.DB {
+	db, err := sql.Open("postgres", url)
 
 	if err != nil {
 		log.Error("Cannot connect to data base: %v", err)
@@ -112,7 +134,6 @@ func dbClear(db *sql.DB) bool {
 	return true
 }
 
-
 func dbUpdate(db *sql.DB, blocknr int, blocktime int64, nominalRate, actualRate float64) {
 
 	_, err := db.Exec("INSERT INTO stakingratestats (block_nr, block_time, nominal_rate, actual_rate) VALUES ($1, $2, $3, $4) ON CONFLICT DO NOTHING",
@@ -122,7 +143,6 @@ func dbUpdate(db *sql.DB, blocknr int, blocktime int64, nominalRate, actualRate 
 	}
 
 }
-
 
 func calcStakingReward(stakeinfo *particlrpc.StakingInfo, blockheader *particlrpc.Block) {
 	/*
@@ -152,6 +172,9 @@ func calcStakingReward(stakeinfo *particlrpc.StakingInfo, blockheader *particlrp
 
 	log.Info(0, "Actual avg reward: %.8f", gAvgActualReward)
 	dbUpdate(gDb, blockheader.Height, blockheader.Time, nominalReward, actualReward)
+	if gDb2 != nil {
+		dbUpdate(gDb2, blockheader.Height, blockheader.Time, nominalReward, actualReward)
+	}
 }
 
 func getStakingInfo(rpc *particlrpc.ParticlRpc) *particlrpc.StakingInfo {
@@ -209,9 +232,9 @@ func collectStakingStats(rpc *particlrpc.ParticlRpc) {
 		msg, err := zmq.RecvMessageBytes(0)
 		if err != nil {
 			log.Error("zmq receive failed: %v\n", err)
-			time.Sleep(10*time.Second)
+			time.Sleep(10 * time.Second)
 		} else {
-			log.Info(0,"stakingRewardCollector: Processing block: %s\n", hex.EncodeToString(msg[1]))
+			log.Info(0, "stakingRewardCollector: Processing block: %s\n", hex.EncodeToString(msg[1]))
 
 			blockheader := getBlockHeader(rpc, msg[1])
 			stakeinfo := getStakingInfo(rpc)
@@ -240,13 +263,21 @@ func main() {
 		defer log.CloseLogFile()
 	}
 
-	gDb = dbConnect()
+	gDb = dbConnect(gConfig.DbUrl)
 	if gDb == nil {
-		log.Fatal("Failed to connect to database.")
+		log.Fatal("Failed to connect to database `%s`.", gConfig.DbUrl)
+	}
+
+	if gConfig.DbUrl2 != "" {
+		gDb2 = dbConnect(gConfig.DbUrl2)
+		if gDb2 == nil {
+			log.Fatal("Failed to connect to database `%s`.", gConfig.DbUrl2)
+		}
 	}
 
 	if gInitDb {
-		if dbInit(gDb) {
+		db := selectDb()
+		if dbInit(db) {
 			return
 		} else {
 			log.Fatal("Failed to initialize database.")
@@ -254,7 +285,8 @@ func main() {
 	}
 
 	if gClearDb {
-		if dbClear(gDb) {
+		db := selectDb()
+		if dbClear(db) {
 			return
 		} else {
 			log.Fatal("Failed to clear database.")
