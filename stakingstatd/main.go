@@ -12,7 +12,7 @@ import (
 	"io/ioutil"
 	"os"
 	"time"
-)
+	)
 
 type Config struct {
 	ParticldRpcPort       int    `json:"particld_rpc_port"`
@@ -32,12 +32,22 @@ type TableDef struct {
 
 const SatPerPart = 100000000
 
+type TableEntry struct {
+	BlockNr int
+	BlockTime int64
+	NominalRate float64
+	ActualRate float64
+}
+
+type TableEntryMap map[int]*TableEntry
+
 var gTableDef = []TableDef{{"stakingratestats", "block_nr int PRIMARY KEY, block_time bigint, nominal_rate numeric, actual_rate numeric"}}
 
 var gConfig Config
 var gInitDb bool
 var gClearDb bool
 var gDbSelect int
+var gDbSync int
 var gAvgActualReward = float64(0)
 var gDb *sql.DB
 var gDb2 *sql.DB
@@ -52,6 +62,7 @@ func parseCommandLine() {
 	flag.BoolVar(&gInitDb, "initdb", false, "initialize database and exit")
 	flag.BoolVar(&gClearDb, "cleardb", false, "clears database and exit")
 	flag.IntVar(&gDbSelect, "db", 1, "select db (1 or 2) for initdb/cleardb")
+	flag.IntVar(&gDbSync, "syncdb", 0, "synchronize last n entries of 2 dbs")
 	flag.Parse()
 }
 
@@ -142,6 +153,44 @@ func dbUpdate(db *sql.DB, blocknr int, blocktime int64, nominalRate, actualRate 
 		log.Error("Inserting into db failed: %v", err)
 	}
 
+}
+
+func dbUpdateEnt(db *sql.DB, ent *TableEntry) {
+	dbUpdate(db, ent.BlockNr, ent.BlockTime, ent.NominalRate, ent.ActualRate)
+}
+
+func getTableEntries(db *sql.DB, n int) TableEntryMap {
+
+	mdata := make(TableEntryMap, n)
+
+	rows, err := db.Query("SELECT block_nr,block_time,nominal_rate,actual_rate FROM stakingratestats ORDER BY block_nr DESC LIMIT $1", n)
+
+	if err == nil {
+		for cont := rows.Next(); cont; cont = rows.Next() {
+			var ent TableEntry
+
+			err = rows.Scan(&ent.BlockNr, ent.BlockTime, &ent.NominalRate, &ent.ActualRate)
+
+			if err == nil {
+				mdata[ent.BlockNr] = &ent
+			} else {
+				log.Error("db scan failed: %v\n", err)
+			}
+
+		}
+		err = rows.Err()
+		if err != nil {
+			log.Error("db next row failed: %v\n", err)
+		}
+		err = rows.Close()
+		if err != nil {
+			log.Error("db close rows failed: %v\n", err)
+		}
+	} else {
+		log.Error("db query failed: %v\n", err)
+	}
+
+	return mdata
 }
 
 func calcStakingReward(stakeinfo *particlrpc.StakingInfo, blockheader *particlrpc.Block) {
@@ -247,6 +296,23 @@ func collectStakingStats(rpc *particlrpc.ParticlRpc) {
 
 }
 
+func syncTableWork(mdata1 TableEntryMap, mdata2 TableEntryMap, db2 *sql.DB, ident string) {
+	for block, ent := range mdata1 {
+		if mdata2[block] == nil {
+			log.Info(0, "Transferring entry for block %d: %s", block, ident)
+			dbUpdateEnt(db2, ent)
+		}
+	}
+}
+
+func syncTables(n int) {
+	mdata1 := getTableEntries(gDb, n)
+	mdata2 := getTableEntries(gDb2, n)
+
+	syncTableWork(mdata1, mdata2, gDb2, "db1->db2")
+	syncTableWork(mdata2, mdata1, gDb, "db2->db1")
+}
+
 func main() {
 	parseCommandLine()
 
@@ -291,6 +357,14 @@ func main() {
 		} else {
 			log.Fatal("Failed to clear database.")
 		}
+	}
+
+	if gDbSync > 0 {
+		if gDb2 == nil {
+			log.Fatal("Second database not defined.")
+		}
+		syncTables(gDbSync)
+		return
 	}
 
 	rpc := particlrpc.NewParticlRpc()
