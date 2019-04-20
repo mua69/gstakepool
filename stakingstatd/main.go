@@ -169,7 +169,7 @@ func getTableEntries(db *sql.DB, n int) TableEntryMap {
 		for cont := rows.Next(); cont; cont = rows.Next() {
 			var ent TableEntry
 
-			err = rows.Scan(&ent.BlockNr, ent.BlockTime, &ent.NominalRate, &ent.ActualRate)
+			err = rows.Scan(&ent.BlockNr, &ent.BlockTime, &ent.NominalRate, &ent.ActualRate)
 
 			if err == nil {
 				mdata[ent.BlockNr] = &ent
