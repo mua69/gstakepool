@@ -206,9 +206,9 @@ func calcStakingReward(stakeinfo *particlrpc.StakingInfo, blockheader *particlrp
 		actualReward := blockReward / stakingTime * 365 * 100 / float64(stakeinfo.Weight) * SatPerPart
 	*/
 
-	nominalReward := stakeinfo.Percentyearreward * (100 - stakeinfo.Foundationdonationpercent) / 100
+	nominalReward := stakeinfo.Percentyearreward * (100 - stakeinfo.Treasurydonationpercent) / 100
 
-	actualReward := stakeinfo.Moneysupply * stakeinfo.Percentyearreward * (100 - stakeinfo.Foundationdonationpercent)
+	actualReward := stakeinfo.Moneysupply * stakeinfo.Percentyearreward * (100 - stakeinfo.Treasurydonationpercent)
 	actualReward /= 100 * 100
 	actualReward /= float64(stakeinfo.Netstakeweight) / SatPerPart
 	actualReward *= 100
