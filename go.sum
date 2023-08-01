@@ -1,0 +1,4 @@
+github.com/lib/pq v1.10.9 h1:YXG7RB+JIjhP29X+OtkiDnYaXQwpS4JEWq7dtCCRUEw=
+github.com/lib/pq v1.10.9/go.mod h1:AlVN5x4E4T544tWzH6hKfbfQvm3HdbOxrmggDNAPY9o=
+github.com/mua69/gstakepool/log v0.0.0-20230801213020-b1c0aefad7c7 h1:SJvGGtztO8EuAIL1cZ17OSULf6bs6GxUDUNcSnuL3jI=
+github.com/mua69/gstakepool/log v0.0.0-20230801213020-b1c0aefad7c7/go.mod h1:SYqIPFucwhQA+chvBV6J6zg/cv4eTHBBUQmm309Oo1w=
