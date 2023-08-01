@@ -1,0 +1,9 @@
+{
+  "particld_rpc_port": 10000,
+  "particld_rpc_host": "",
+  "particld_data_dir": ".",
+  "particld_staking_wallet":"pool_stake",
+  "zmq_endpoint":"tcp://127.0.0.1:207922",
+  "db_url":"dbname=stakepool host=localhost port=5001 user=particl",
+  "log_file": ""
+}
