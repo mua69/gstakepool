@@ -1,0 +1,10 @@
+github.com/lib/pq v1.10.9 h1:YXG7RB+JIjhP29X+OtkiDnYaXQwpS4JEWq7dtCCRUEw=
+github.com/lib/pq v1.10.9/go.mod h1:AlVN5x4E4T544tWzH6hKfbfQvm3HdbOxrmggDNAPY9o=
+github.com/mua69/gstakepool/log v0.0.0-20230801213356-d2019205d959 h1:qT0SOwlo4D9NN91RFhSvfZbYoG2xQBwumRITyx7Zeb8=
+github.com/mua69/gstakepool/log v0.0.0-20230801213356-d2019205d959/go.mod h1:SYqIPFucwhQA+chvBV6J6zg/cv4eTHBBUQmm309Oo1w=
+github.com/mua69/particlrpc v0.0.0-20230801211550-79061946e7d2 h1:G+3AV3UXVtxCyB7LDvW+O4Y7sTl0OBf7R1EeyDg81/M=
+github.com/mua69/particlrpc v0.0.0-20230801211550-79061946e7d2/go.mod h1:GCmw+LX5slM+IsCe1IPKAMm8XFHo0Egclck0UwvFi4I=
+github.com/pebbe/zmq4 v1.2.10 h1:wQkqRZ3CZeABIeidr3e8uQZMMH5YAykA/WN0L5zkd1c=
+github.com/pebbe/zmq4 v1.2.10/go.mod h1:nqnPueOapVhE2wItZ0uOErngczsJdLOGkebMxaO8r48=
+github.com/pkg/errors v0.9.1 h1:FEBLx1zS214owpjy7qsBeixbURkuhQAwrK5UwLGTwt4=
+github.com/pkg/errors v0.9.1/go.mod h1:bwawxfHBFNV+L2hUp1rHADufV3IMtnDRdf1r5NINEl0=
